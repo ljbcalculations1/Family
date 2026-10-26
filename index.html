@@ -39,14 +39,6 @@
         let deletedItemTemp = null;
         let deleteTimeout = null;
 
-        // Colors for family members
-        const memberColors = {
-            'Michelle': 'bg-pink-100 text-pink-700 border-pink-200',
-            'Thomas': 'bg-blue-100 text-blue-700 border-blue-200',
-            'George': 'bg-green-100 text-green-700 border-green-200',
-            'Lee': 'bg-amber-100 text-amber-700 border-amber-200'
-        };
-
         const memberBadgeColors = {
             'Michelle': 'bg-pink-500 text-white',
             'Thomas': 'bg-blue-500 text-white',
@@ -54,242 +46,237 @@
             'Lee': 'bg-amber-500 text-white'
         };
 
-        // DOM Elements
-        const itemInput = document.getElementById('itemInput');
-        const memberSelect = document.getElementById('memberSelect');
-        const categorySelect = document.getElementById('categorySelect');
-        const addItemBtn = document.getElementById('addItemBtn');
-        const itemsList = document.getElementById('itemsList');
-        const emptyState = document.getElementById('emptyState');
-        const searchInput = document.getElementById('searchInput');
-        const quickAddContainer = document.getElementById('quickAddChips');
-        const datalist = document.getElementById('itemHistory');
-        const connectionBadge = document.getElementById('connectionBadge');
+        // DOM Elements setup
+        document.addEventListener("DOMContentLoaded", () => {
+            const itemInput = document.getElementById('itemInput');
+            const memberSelect = document.getElementById('memberSelect');
+            const categorySelect = document.getElementById('categorySelect');
+            const addItemBtn = document.getElementById('addItemBtn');
+            const itemsList = document.getElementById('itemsList');
+            const emptyState = document.getElementById('emptyState');
+            const searchInput = document.getElementById('searchInput');
+            const quickAddContainer = document.getElementById('quickAddChips');
+            const datalist = document.getElementById('itemHistory');
+            const connectionBadge = document.getElementById('connectionBadge');
 
-        // Realtime Database Sync
-        onValue(itemsRef, (snapshot) => {
-            connectionBadge.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>Live Connected';
-            connectionBadge.className = 'text-xs text-green-600 font-medium bg-green-50 px-2.5 py-1 rounded-full border border-green-200 flex items-center';
-            
-            const data = snapshot.val();
-            items = [];
-            if (data) {
-                Object.keys(data).forEach(key => {
-                    items.push({ id: key, ...data[key] });
-                });
-                // Sort by creation time newest first
-                items.sort((a, b) => b.createdAt - a.createdAt);
-            }
-            updateHistoryDatalist();
-            renderItems();
-        }, (error) => {
-            console.error(error);
-            connectionBadge.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5"></span>Offline / Config Error';
-            connectionBadge.className = 'text-xs text-red-600 font-medium bg-red-50 px-2.5 py-1 rounded-full border border-red-200 flex items-center';
-        });
+            // Realtime Database Listener
+            onValue(itemsRef, (snapshot) => {
+                connectionBadge.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>Live Connected';
+                connectionBadge.className = 'text-xs text-green-600 font-medium bg-green-50 px-2.5 py-1 rounded-full border border-green-200 flex items-center';
+                
+                const data = snapshot.val();
+                items = [];
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        items.push({ id: key, ...data[key] });
+                    });
+                    items.sort((a, b) => b.createdAt - a.createdAt);
+                }
+                updateHistoryDatalist();
+                renderItems();
+            }, (error) => {
+                console.error(error);
+                connectionBadge.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5"></span>Offline / Config Error';
+                connectionBadge.className = 'text-xs text-red-600 font-medium bg-red-50 px-2.5 py-1 rounded-full border border-red-200 flex items-center';
+            });
 
-        // Add Item
-        function addItem(nameOverride = null) {
-            const name = nameOverride || itemInput.value.trim();
-            if (!name) return;
+            // Add Item Function
+            window.addItem = function(nameOverride = null) {
+                const name = nameOverride || itemInput.value.trim();
+                if (!name) return;
 
-            const selectedMember = memberSelect.value;
-            const selectedCategory = categorySelect.value;
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + 
-                            now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                const selectedMember = memberSelect.value;
+                const selectedCategory = categorySelect.value;
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + 
+                                now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-            const newItem = {
-                name: name,
-                member: selectedMember,
-                category: selectedCategory,
-                timestamp: dateStr,
-                createdAt: Date.now(),
-                bought: false
+                const newItem = {
+                    name: name,
+                    member: selectedMember,
+                    category: selectedCategory,
+                    timestamp: dateStr,
+                    createdAt: Date.now(),
+                    bought: false
+                };
+
+                push(itemsRef, newItem);
+
+                if (!nameOverride) {
+                    itemInput.value = '';
+                    itemInput.focus();
+                }
             };
 
-            push(itemsRef, newItem);
+            // Toggle Bought Status
+            window.toggleBought = function(id, currentStatus) {
+                const itemRef = ref(db, `shoppingItems/${id}`);
+                update(itemRef, { bought: !currentStatus });
+            };
 
-            if (!nameOverride) {
-                itemInput.value = '';
-                itemInput.focus();
+            // Delete Item with Toast
+            window.deleteItem = function(id) {
+                const itemToDelete = items.find(i => i.id === id);
+                if (!itemToDelete) return;
+
+                deletedItemTemp = { ...itemToDelete };
+                remove(ref(db, `shoppingItems/${id}`));
+
+                showUndoToast(deletedItemTemp);
+            };
+
+            function showUndoToast(item) {
+                const toast = document.getElementById('undoToast');
+                const toastText = document.getElementById('undoText');
+                toastText.textContent = `Deleted "${item.name}"`;
+                toast.classList.remove('hidden', 'translate-y-10', 'opacity-0');
+
+                if (deleteTimeout) clearTimeout(deleteTimeout);
+                deleteTimeout = setTimeout(() => {
+                    hideUndoToast();
+                }, 5000);
             }
-        }
 
-        // Toggle Bought
-        window.toggleBought = function(id, currentStatus) {
-            const itemRef = ref(db, `shoppingItems/${id}`);
-            update(itemRef, { bought: !currentStatus });
-        };
+            window.hideUndoToast = function() {
+                const toast = document.getElementById('undoToast');
+                toast.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            };
 
-        // Delete Item with Undo Toast
-        window.deleteItem = function(id) {
-            const itemToDelete = items.find(i => i.id === id);
-            if (!itemToDelete) return;
-
-            deletedItemTemp = { ...itemToDelete };
-            remove(ref(db, `shoppingItems/${id}`));
-
-            showUndoToast(deletedItemTemp);
-        };
-
-        function showUndoToast(item) {
-            const toast = document.getElementById('undoToast');
-            const toastText = document.getElementById('undoText');
-            toastText.textContent = `Deleted "${item.name}"`;
-            toast.classList.remove('hidden', 'translate-y-10', 'opacity-0');
-
-            if (deleteTimeout) clearTimeout(deleteTimeout);
-            deleteTimeout = setTimeout(() => {
-                hideUndoToast();
-            }, 5000);
-        }
-
-        window.hideUndoToast = function() {
-            const toast = document.getElementById('undoToast');
-            toast.classList.add('translate-y-10', 'opacity-0');
-            setTimeout(() => toast.classList.add('hidden'), 300);
-        };
-
-        window.undoDelete = function() {
-            if (deletedItemTemp) {
-                const { id, ...itemData } = deletedItemTemp;
-                push(itemsRef, itemData);
-                deletedItemTemp = null;
-                hideUndoToast();
-            }
-        };
-
-        // Update typed history in datalist and chips
-        function updateHistoryDatalist() {
-            const uniqueNames = [...new Set(items.map(i => i.name.trim()))];
-            datalist.innerHTML = uniqueNames.map(name => `<option value="${name}">`).join('');
-
-            // Display top 5 recent unique items as quick chips
-            const recentNames = uniqueNames.slice(0, 6);
-            if (recentNames.length > 0) {
-                quickAddContainer.innerHTML = recentNames.map(name => `
-                    <button type="button" onclick="quickAdd('${name.replace(/'/g, "\\'")}')" class="px-2.5 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full border border-slate-300 transition-colors flex items-center space-x-1">
-                        <i class="fa-solid font-bold text-slate-400">+</i>
-                        <span>${name}</span>
-                    </button>
-                `).join('');
-            } else {
-                quickAddContainer.innerHTML = '';
-            }
-        }
-
-        window.quickAdd = function(name) {
-            addItem(name);
-        };
-
-        // Filter Member Event
-        window.setMemberFilter = function(member) {
-            currentMemberFilter = member;
-            document.querySelectorAll('.filter-tab').forEach(tab => {
-                if (tab.dataset.member === member) {
-                    tab.className = 'filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-blue-600 text-white active-tab';
-                } else {
-                    tab.className = 'filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-slate-100 text-slate-600 hover:bg-slate-200';
+            window.undoDelete = function() {
+                if (deletedItemTemp) {
+                    const { id, ...itemData } = deletedItemTemp;
+                    push(itemsRef, itemData);
+                    deletedItemTemp = null;
+                    hideUndoToast();
                 }
-            });
-            renderItems();
-        };
+            };
 
-        // Share Summary via WhatsApp / Text
-        window.shareSummary = function() {
-            const unboughtItems = items.filter(i => !i.bought);
-            if (unboughtItems.length === 0) {
-                alert('Shopping list is currently empty!');
-                return;
-            }
+            // Datalist and Quick Add Chips
+            function updateHistoryDatalist() {
+                const uniqueNames = [...new Set(items.map(i => i.name.trim()))];
+                datalist.innerHTML = uniqueNames.map(name => `<option value="${name}">`).join('');
 
-            let text = "🛒 *Family Aldi Shopping List*\n\n";
-            const grouped = {};
-            unboughtItems.forEach(i => {
-                if (!grouped[i.category]) grouped[i.category] = [];
-                grouped[i.category].push(`${i.name} (${i.member})`);
-            });
-
-            for (const cat in grouped) {
-                text += `*${cat.toUpperCase()}*\n`;
-                grouped[cat].forEach(itemStr => {
-                    text += `• ${itemStr}\n`;
-                });
-                text += `\n`;
-            }
-
-            if (navigator.share) {
-                navigator.share({ title: 'Aldi Shopping List', text: text }).catch(() => {});
-            } else {
-                navigator.clipboard.writeText(text);
-                alert('Shopping summary copied to clipboard!');
-            }
-        };
-
-        // Render UI
-        function renderItems() {
-            const search = searchInput.value.toLowerCase().trim();
-            const filtered = items.filter(item => {
-                const matchesMember = (currentMemberFilter === 'All') || (item.member === currentMemberFilter);
-                const matchesSearch = item.name.toLowerCase().includes(search) || item.member.toLowerCase().includes(search);
-                return matchesMember && matchesSearch;
-            });
-
-            if (filtered.length === 0) {
-                itemsList.innerHTML = '';
-                emptyState.classList.remove('hidden');
-                return;
-            }
-
-            emptyState.classList.add('hidden');
-
-            // Sort unbought top, bought bottom
-            filtered.sort((a, b) => a.bought - b.bought);
-
-            itemsList.innerHTML = filtered.map(item => `
-                <div class="group bg-white rounded-2xl p-4 border ${item.bought ? 'border-slate-200 bg-slate-50/70 opacity-60' : 'border-slate-200/80 shadow-sm hover:shadow-md'} transition-all duration-200 flex items-center justify-between gap-3">
-                    <div class="flex items-center space-x-3.5 flex-1 min-w-0">
-                        <button onclick="toggleBought('${item.id}', ${item.bought})" class="w-7 h-7 rounded-full border-2 ${item.bought ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-slate-400'} flex items-center justify-center transition-colors shrink-0">
-                            ${item.bought ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                const recentNames = uniqueNames.slice(0, 6);
+                if (recentNames.length > 0) {
+                    quickAddContainer.innerHTML = recentNames.map(name => `
+                        <button type="button" onclick="quickAdd('${name.replace(/'/g, "\\'")}')" class="px-2.5 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full border border-slate-300 transition-colors flex items-center space-x-1">
+                            <i class="fa-solid font-bold text-slate-400">+</i>
+                            <span>${name}</span>
                         </button>
-                        
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-base font-semibold text-slate-800 break-words ${item.bought ? 'line-through text-slate-400' : ''}">
-                                    ${item.name}
-                                </span>
-                            </div>
-                            <div class="flex items-center space-x-2 mt-1 flex-wrap gap-y-1">
-                                <span class="px-2 py-0.5 rounded-md text-xs font-semibold ${memberBadgeColors[item.member] || 'bg-slate-500 text-white'} shadow-xs">
-                                    ${item.member}
-                                </span>
-                                <span class="text-xs text-slate-400 flex items-center">
-                                    <i class="fa-regular fa-clock mr-1 text-[10px]"></i> ${item.timestamp}
-                                </span>
-                                <span class="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                                    ${item.category}
-                                </span>
+                    `).join('');
+                } else {
+                    quickAddContainer.innerHTML = '';
+                }
+            }
+
+            window.quickAdd = function(name) {
+                window.addItem(name);
+            };
+
+            // Member Filter Tab
+            window.setMemberFilter = function(member) {
+                currentMemberFilter = member;
+                document.querySelectorAll('.filter-tab').forEach(tab => {
+                    if (tab.dataset.member === member) {
+                        tab.className = 'filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-blue-600 text-white active-tab';
+                    } else {
+                        tab.className = 'filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-slate-100 text-slate-600 hover:bg-slate-200';
+                    }
+                });
+                renderItems();
+            };
+
+            // Share Summary
+            window.shareSummary = function() {
+                const unboughtItems = items.filter(i => !i.bought);
+                if (unboughtItems.length === 0) {
+                    alert('Shopping list is currently empty!');
+                    return;
+                }
+
+                let text = "🛒 *Family Aldi Shopping List*\n\n";
+                const grouped = {};
+                unboughtItems.forEach(i => {
+                    if (!grouped[i.category]) grouped[i.category] = [];
+                    grouped[i.category].push(`${i.name} (${i.member})`);
+                });
+
+                for (const cat in grouped) {
+                    text += `*${cat.toUpperCase()}*\n`;
+                    grouped[cat].forEach(itemStr => {
+                        text += `• ${itemStr}\n`;
+                    });
+                    text += `\n`;
+                }
+
+                if (navigator.share) {
+                    navigator.share({ title: 'Aldi Shopping List', text: text }).catch(() => {});
+                } else {
+                    navigator.clipboard.writeText(text);
+                    alert('Shopping summary copied to clipboard!');
+                }
+            };
+
+            // Render Function
+            function renderItems() {
+                const search = searchInput.value.toLowerCase().trim();
+                const filtered = items.filter(item => {
+                    const matchesMember = (currentMemberFilter === 'All') || (item.member === currentMemberFilter);
+                    const matchesSearch = item.name.toLowerCase().includes(search) || item.member.toLowerCase().includes(search);
+                    return matchesMember && matchesSearch;
+                });
+
+                if (filtered.length === 0) {
+                    itemsList.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
+                filtered.sort((a, b) => a.bought - b.bought);
+
+                itemsList.innerHTML = filtered.map(item => `
+                    <div class="group bg-white rounded-2xl p-4 border ${item.bought ? 'border-slate-200 bg-slate-50/70 opacity-60' : 'border-slate-200/80 shadow-sm hover:shadow-md'} transition-all duration-200 flex items-center justify-between gap-3">
+                        <div class="flex items-center space-x-3.5 flex-1 min-w-0">
+                            <button onclick="toggleBought('${item.id}', ${item.bought})" class="w-7 h-7 rounded-full border-2 ${item.bought ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-slate-400'} flex items-center justify-center transition-colors shrink-0">
+                                ${item.bought ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                            </button>
+                            
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-base font-semibold text-slate-800 break-words ${item.bought ? 'line-through text-slate-400' : ''}">
+                                        ${item.name}
+                                    </span>
+                                </div>
+                                <div class="flex items-center space-x-2 mt-1 flex-wrap gap-y-1">
+                                    <span class="px-2 py-0.5 rounded-md text-xs font-semibold ${memberBadgeColors[item.member] || 'bg-slate-500 text-white'} shadow-xs">
+                                        ${item.member}
+                                    </span>
+                                    <span class="text-xs text-slate-400 flex items-center">
+                                        <i class="fa-regular fa-clock mr-1 text-[10px]"></i> ${item.timestamp}
+                                    </span>
+                                    <span class="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                        ${item.category}
+                                    </span>
+                                </div>
                             </div>
                         </div>
+
+                        <button onclick="deleteItem('${item.id}')" class="text-slate-300 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-colors shrink-0">
+                            <i class="fa-regular fa-trash-can text-lg"></i>
+                        </button>
                     </div>
+                `).join('');
+            }
 
-                    <button onclick="deleteItem('${item.id}')" class="text-slate-300 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-colors shrink-0">
-                        <i class="fa-regular fa-trash-can text-lg"></i>
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        // Event Listeners
-        addItemBtn.addEventListener('click', () => addItem());
-        itemInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addItem();
+            // Event Bindings
+            addItemBtn.addEventListener('click', () => addItem());
+            itemInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addItem();
+            });
+            searchInput.addEventListener('input', renderItems);
         });
-        searchInput.addEventListener('input', renderItems);
-
-        // Make functions global for inline button calls
-        window.addItem = addItem;
     </script>
 </head>
 <body class="bg-slate-100 font-['Inter'] text-slate-800 min-h-screen pb-24">
@@ -368,7 +355,7 @@
                 </div>
             </div>
 
-            <button idaddItemBtn" onclick="addItem()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-2">
+            <button id="addItemBtn" onclick="addItem()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-2">
                 <i class="fa-solid fa-plus"></i>
                 <span>Add to Family List</span>
             </button>
