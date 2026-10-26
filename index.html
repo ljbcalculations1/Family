@@ -2,701 +2,412 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Family Shopping List</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Aldi Shopping List</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                    },
-                    colors: {
-                        michelle: { light: '#fbcfe8', DEFAULT: '#ec4899', dark: '#be185d' },
-                        thomas: { light: '#bfdbfe', DEFAULT: '#3b82f6', dark: '#1d4ed8' },
-                        george: { light: '#bbf7d0', DEFAULT: '#22c55e', dark: '#15803d' },
-                        lee: { light: '#fef08a', DEFAULT: '#eab308', dark: '#a16207' }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        /* Touch optimization & subtle animations */
-        * { -webkit-tap-highlight-color: transparent; }
-        .slide-up { animation: slideUp 0.25s ease-out; }
-        .fade-in { animation: fadeIn 0.2s ease-in; }
-        @keyframes slideUp {
-            from { transform: translateY(12px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        /* Custom scrollbars */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.4); border-radius: 9999px; }
-    </style>
-</head>
-<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen font-sans pb-24 transition-colors duration-200">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Top Header -->
-    <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3">
-        <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
-            <div class="flex items-center space-x-2">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-                    <i class="fa-solid font-bold text-lg fa-basket-shopping"></i>
-                </div>
-                <div>
-                    <h1 class="text-lg font-bold leading-tight tracking-tight">Family Grocery</h1>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Aldi & Supermarket List</p>
-                </div>
-            </div>
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-            <!-- Header Quick Actions -->
-            <div class="flex items-center space-x-1 sm:space-x-2">
-                <button id="themeToggleBtn" onclick="toggleDarkMode()" class="p-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Toggle Theme">
-                    <i class="fa-solid fa-moon dark:hidden text-lg"></i>
-                    <i class="fa-solid fa-sun hidden dark:inline text-lg text-amber-400"></i>
-                </button>
-                <button onclick="copyListSummary()" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5 text-xs font-semibold" title="Share / Copy summary">
-                    <i class="fa-solid fa-share-nodes text-sm"></i>
-                    <span class="hidden sm:inline">Share List</span>
-                </button>
-                <button onclick="clearBoughtItems()" class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition flex items-center gap-1.5 text-xs font-semibold" title="Clear completed items">
-                    <i class="fa-solid fa-broom text-sm"></i>
-                    <span class="hidden sm:inline">Clear Bought</span>
-                </button>
-            </div>
-        </div>
+        // Your exact Firebase keys
+        const firebaseConfig = {
+            apiKey: "AIzaSyBmPpIei1hKIvHogW179NQDUbQLkxvL18Q",
+            authDomain: "family-shopping-4bf55.firebaseapp.com",
+            databaseURL: "https://family-shopping-4bf55-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "family-shopping-4bf55",
+            storageBucket: "family-shopping-4bf55.firebasestorage.app",
+            messagingSenderId: "751044062742",
+            appId: "1:751044062742:web:b39e5f52cd971166a6cf37",
+            measurementId: "G-27HJWE70ST"
+        };
 
-        <!-- Search & Filter Bar -->
-        <div class="max-w-4xl mx-auto mt-3 flex items-center gap-2">
-            <div class="relative flex-1">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                <input type="text" id="searchInput" oninput="renderItems()" placeholder="Search items across all lists..." 
-                       class="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-800/80 border border-transparent focus:border-blue-500 dark:focus:border-blue-500 rounded-xl text-sm focus:outline-none transition">
-                <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <select id="categoryFilter" onchange="renderItems()" class="py-2 px-3 bg-slate-100 dark:bg-slate-800/80 border border-transparent rounded-xl text-sm font-medium focus:outline-none cursor-pointer">
-                <option value="ALL">All Categories</option>
-                <option value="Produce">🥦 Produce</option>
-                <option value="Bakery">🍞 Bakery</option>
-                <option value="Chilled & Dairy">🧀 Chilled & Dairy</option>
-                <option value="Meat & Fish">🥩 Meat & Fish</option>
-                <option value="Pantry & Snacks">🥫 Pantry & Snacks</option>
-                <option value="Frozen">🧊 Frozen</option>
-                <option value="Drinks">🥤 Drinks</option>
-                <option value="Household">🧹 Household</option>
-                <option value="Other">🛒 Other</option>
-            </select>
-        </div>
-    </header>
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const itemsRef = ref(db, 'shoppingItems');
 
-    <!-- Main Container -->
-    <main class="max-w-4xl mx-auto px-4 mt-4">
-
-        <!-- Family Member Tabs Navigation -->
-        <div class="flex space-x-2 overflow-x-auto pb-2 scrollbar-none" id="memberTabs">
-            <!-- Rendered by JS -->
-        </div>
-
-        <!-- Quick Add Section -->
-        <section class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-700/80 p-4 mb-5 transition-all">
-            <div class="flex items-center justify-between mb-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                    <i class="fa-solid fa-plus text-blue-500"></i> Add Item For
-                    <span id="addItemTargetName" class="text-slate-800 dark:text-slate-100 underline decoration-2 decoration-blue-500">Michelle</span>
-                </label>
-                <span class="text-[11px] text-slate-400">Auto-saves locally</span>
-            </div>
-
-            <form onsubmit="handleAddItem(event)" class="space-y-3">
-                <div class="flex flex-col sm:flex-row gap-2">
-                    <!-- Item Name Input with Datalist Autocomplete -->
-                    <div class="relative flex-1">
-                        <input type="text" id="itemInput" placeholder="e.g. Milk, Bananas, Crispbread..." required autocomplete="off"
-                               oninput="onInputTyping(this.value)"
-                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm transition">
-                        <!-- Custom Autocomplete Dropdown List -->
-                        <div id="autocompleteDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-20 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700"></div>
-                    </div>
-
-                    <!-- Category Picker -->
-                    <select id="itemCategory" class="px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:outline-none cursor-pointer">
-                        <option value="Produce">🥦 Produce</option>
-                        <option value="Bakery">🍞 Bakery</option>
-                        <option value="Chilled & Dairy" selected>🧀 Chilled & Dairy</option>
-                        <option value="Meat & Fish">🥩 Meat & Fish</option>
-                        <option value="Pantry & Snacks">🥫 Pantry & Snacks</option>
-                        <option value="Frozen">🧊 Frozen</option>
-                        <option value="Drinks">🥤 Drinks</option>
-                        <option value="Household">🧹 Household</option>
-                        <option value="Other">🛒 Other</option>
-                    </select>
-
-                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-sm shadow-blue-500/30">
-                        <i class="fa-solid fa-plus"></i> Add Item
-                    </button>
-                </div>
-
-                <!-- Memory Quick Suggestions Chips -->
-                <div id="historyChipsContainer" class="flex flex-wrap items-center gap-1.5 pt-1">
-                    <!-- Suggested chips will be populated here -->
-                </div>
-            </form>
-        </section>
-
-        <!-- Stats Overview Banner -->
-        <div class="flex items-center justify-between px-2 mb-3">
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500" id="sectionHeading">
-                Shopping List
-            </h2>
-            <div id="itemCounts" class="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                0 remaining
-            </div>
-        </div>
-
-        <!-- Shopping Lists Container -->
-        <div id="shoppingListsContainer" class="space-y-6">
-            <!-- Dynamic Content (Michelle, Thomas, George, Lee cards) -->
-        </div>
-
-    </main>
-
-    <!-- Global Toast / Undo Snackbar -->
-    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden flex items-center gap-3 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-xl border border-slate-700 dark:border-slate-300 slide-up max-w-sm w-11/12">
-        <span id="toastMessage" class="text-sm font-medium truncate flex-1">Item marked as bought</span>
-        <button id="toastUndoBtn" onclick="undoLastAction()" class="text-xs font-bold text-amber-400 dark:text-amber-600 hover:underline uppercase tracking-wider">
-            Undo
-        </button>
-    </div>
-
-    <!-- Application Script Logic -->
-    <script>
-        // Constants & Initial Config
-        const MEMBERS = [
-            { id: 'Michelle', name: 'Michelle', icon: 'fa-user-ninja', color: 'pink', badge: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300 border-pink-200 dark:border-pink-900' },
-            { id: 'Thomas', name: 'Thomas', icon: 'fa-user-astronaut', color: 'blue', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-900' },
-            { id: 'George', name: 'George', icon: 'fa-user-hoodie', color: 'emerald', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900' },
-            { id: 'Lee', name: 'Lee', icon: 'fa-user-tie', color: 'amber', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-900' }
-        ];
-
-        // State Management
-        let currentTab = 'ALL'; // 'ALL' or member name
+        // App state
+        let currentMemberFilter = 'All';
         let items = [];
-        let itemHistory = []; // Typed items memory
-        let lastDeletedItem = null;
-        let toastTimeout = null;
+        let deletedItemTemp = null;
+        let deleteTimeout = null;
 
-        // Initialize App on DOM Ready
-        window.addEventListener('DOMContentLoaded', () => {
-            loadFromStorage();
-            initTheme();
-            renderTabs();
-            renderHistoryChips();
-            renderItems();
-        });
+        // Colors for family members
+        const memberColors = {
+            'Michelle': 'bg-pink-100 text-pink-700 border-pink-200',
+            'Thomas': 'bg-blue-100 text-blue-700 border-blue-200',
+            'George': 'bg-green-100 text-green-700 border-green-200',
+            'Lee': 'bg-amber-100 text-amber-700 border-amber-200'
+        };
 
-        // --- Local Storage Management ---
-        function loadFromStorage() {
-            try {
-                const storedItems = localStorage.getItem('family_shopping_items');
-                items = storedItems ? JSON.parse(storedItems) : getDefaultItems();
+        const memberBadgeColors = {
+            'Michelle': 'bg-pink-500 text-white',
+            'Thomas': 'bg-blue-500 text-white',
+            'George': 'bg-green-500 text-white',
+            'Lee': 'bg-amber-500 text-white'
+        };
 
-                const storedHistory = localStorage.getItem('family_shopping_history');
-                itemHistory = storedHistory ? JSON.parse(storedHistory) : ['Milk', 'Bread', 'Eggs', 'Butter', 'Bananas', 'Chicken Breast', 'Coffee', 'Crisps'];
-            } catch (e) {
-                console.error("Storage error:", e);
-                items = getDefaultItems();
-                itemHistory = ['Milk', 'Bread', 'Eggs', 'Bananas'];
-            }
-        }
+        // DOM Elements
+        const itemInput = document.getElementById('itemInput');
+        const memberSelect = document.getElementById('memberSelect');
+        const categorySelect = document.getElementById('categorySelect');
+        const addItemBtn = document.getElementById('addItemBtn');
+        const itemsList = document.getElementById('itemsList');
+        const emptyState = document.getElementById('emptyState');
+        const searchInput = document.getElementById('searchInput');
+        const quickAddContainer = document.getElementById('quickAddChips');
+        const datalist = document.getElementById('itemHistory');
+        const connectionBadge = document.getElementById('connectionBadge');
 
-        function saveToStorage() {
-            localStorage.setItem('family_shopping_items', JSON.stringify(items));
-            localStorage.setItem('family_shopping_history', JSON.stringify(itemHistory));
-        }
-
-        function getDefaultItems() {
-            const today = formatDate(new Date());
-            return [
-                { id: '1', member: 'Michelle', text: 'Almond Milk', category: 'Chilled & Dairy', addedAt: today, bought: false },
-                { id: '2', member: 'Thomas', text: 'Chocolate Oat Bars', category: 'Pantry & Snacks', addedAt: today, bought: false },
-                { id: '3', member: 'George', text: 'Apples & Bananas', category: 'Produce', addedAt: today, bought: false },
-                { id: '4', member: 'Lee', text: 'Ground Coffee', category: 'Pantry & Snacks', addedAt: today, bought: false }
-            ];
-        }
-
-        // --- Helper: Format Date String ---
-        function formatDate(dateObj) {
-            const options = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
-            return dateObj.toLocaleDateString('en-GB', options);
-        }
-
-        // --- Dark Mode Handler ---
-        function initTheme() {
-            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        }
-
-        function toggleDarkMode() {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark');
-                localStorage.theme = 'light';
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.theme = 'dark';
-            }
-        }
-
-        // --- Render Family Tabs ---
-        function renderTabs() {
-            const container = document.getElementById('memberTabs');
-            let html = `
-                <button onclick="switchTab('ALL')" class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${currentTab === 'ALL' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-transparent shadow' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}">
-                    <i class="fa-solid fa-users"></i> Everyone
-                </button>
-            `;
-
-            MEMBERS.forEach(m => {
-                const isActive = currentTab === m.id;
-                html += `
-                    <button onclick="switchTab('${m.id}')" class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${isActive ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-transparent shadow' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}">
-                        <i class="fa-solid ${m.icon}"></i> ${m.name}
-                    </button>
-                `;
-            });
-
-            container.innerHTML = html;
-        }
-
-        function switchTab(tabId) {
-            currentTab = tabId;
-            document.getElementById('addItemTargetName').textContent = tabId === 'ALL' ? 'Michelle' : tabId;
-            renderTabs();
-            renderItems();
-        }
-
-        // --- Render Memory Autocomplete Chips ---
-        function renderHistoryChips() {
-            const container = document.getElementById('historyChipsContainer');
-            if (itemHistory.length === 0) {
-                container.innerHTML = '';
-                return;
-            }
-
-            // Display latest 6 unique items
-            const recent = itemHistory.slice(-8).reverse();
-            let html = `<span class="text-[11px] font-semibold text-slate-400 mr-1">Quick Add:</span>`;
-            recent.forEach(name => {
-                html += `
-                    <button type="button" onclick="quickAddChip('${escapeHtml(name)}')" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs rounded-lg transition border border-slate-200/60 dark:border-slate-600">
-                        + ${escapeHtml(name)}
-                    </button>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        // Quick add from chip
-        function quickAddChip(name) {
-            document.getElementById('itemInput').value = name;
-            // Guess category if possible
-            autoSelectCategory(name);
-        }
-
-        // --- Autocomplete Typing Search ---
-        function onInputTyping(val) {
-            const dropdown = document.getElementById('autocompleteDropdown');
-            const trimmed = val.trim().toLowerCase();
+        // Realtime Database Sync
+        onValue(itemsRef, (snapshot) => {
+            connectionBadge.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>Live Connected';
+            connectionBadge.className = 'text-xs text-green-600 font-medium bg-green-50 px-2.5 py-1 rounded-full border border-green-200 flex items-center';
             
-            if (!trimmed) {
-                dropdown.classList.add('hidden');
-                return;
+            const data = snapshot.val();
+            items = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    items.push({ id: key, ...data[key] });
+                });
+                // Sort by creation time newest first
+                items.sort((a, b) => b.createdAt - a.createdAt);
             }
-
-            const matches = itemHistory.filter(h => h.toLowerCase().includes(trimmed));
-            if (matches.length === 0) {
-                dropdown.classList.add('hidden');
-                return;
-            }
-
-            let html = '';
-            matches.forEach(item => {
-                html += `
-                    <div onclick="selectAutocomplete('${escapeHtml(item)}')" class="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer flex items-center justify-between">
-                        <span>${escapeHtml(item)}</span>
-                        <i class="fa-solid fa-arrow-up-left text-xs text-slate-400"></i>
-                    </div>
-                `;
-            });
-            dropdown.innerHTML = html;
-            dropdown.classList.remove('hidden');
-
-            autoSelectCategory(val);
-        }
-
-        function selectAutocomplete(value) {
-            document.getElementById('itemInput').value = value;
-            document.getElementById('autocompleteDropdown').classList.add('hidden');
-            autoSelectCategory(value);
-        }
-
-        // Simple heuristic to pre-select category based on item name
-        function autoSelectCategory(name) {
-            const lower = name.toLowerCase();
-            const select = document.getElementById('itemCategory');
-            if (/milk|cheese|butter|yogurt|cream|chilled/i.test(lower)) select.value = 'Chilled & Dairy';
-            else if (/apple|banana|berry|salad|onion|potato|carrot|tomato|fruit|veg|produce/i.test(lower)) select.value = 'Produce';
-            else if (/bread|bagel|bun|cake|bakery|croissant/i.test(lower)) select.value = 'Bakery';
-            else if (/chicken|beef|pork|bacon|sausage|fish|salmon|meat/i.test(lower)) select.value = 'Meat & Fish';
-            else if (/ice cream|pizza|frozen|peas/i.test(lower)) select.value = 'Frozen';
-            else if (/coke|juice|water|soda|beer|wine|drink/i.test(lower)) select.value = 'Drinks';
-            else if (/soap|paper|toilet|bleach|cleaner|household|sponge/i.test(lower)) select.value = 'Household';
-        }
-
-        // Close autocomplete when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('#itemInput') && !e.target.closest('#autocompleteDropdown')) {
-                document.getElementById('autocompleteDropdown')?.classList.add('hidden');
-            }
+            updateHistoryDatalist();
+            renderItems();
+        }, (error) => {
+            console.error(error);
+            connectionBadge.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5"></span>Offline / Config Error';
+            connectionBadge.className = 'text-xs text-red-600 font-medium bg-red-50 px-2.5 py-1 rounded-full border border-red-200 flex items-center';
         });
 
-        // --- Adding New Items ---
-        function handleAddItem(e) {
-            e.preventDefault();
-            const input = document.getElementById('itemInput');
-            const categorySelect = document.getElementById('itemCategory');
-            const text = input.value.trim();
+        // Add Item
+        function addItem(nameOverride = null) {
+            const name = nameOverride || itemInput.value.trim();
+            if (!name) return;
 
-            if (!text) return;
-
-            // Target member is current active tab, or default to Michelle if 'ALL'
-            const targetMember = currentTab === 'ALL' ? 'Michelle' : currentTab;
+            const selectedMember = memberSelect.value;
+            const selectedCategory = categorySelect.value;
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + 
+                            now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
             const newItem = {
-                id: Date.now().toString(),
-                member: targetMember,
-                text: text,
-                category: categorySelect.value,
-                addedAt: formatDate(new Date()),
+                name: name,
+                member: selectedMember,
+                category: selectedCategory,
+                timestamp: dateStr,
+                createdAt: Date.now(),
                 bought: false
             };
 
-            items.unshift(newItem);
+            push(itemsRef, newItem);
 
-            // Remember history
-            if (!itemHistory.some(h => h.toLowerCase() === text.toLowerCase())) {
-                itemHistory.push(text);
-                saveToStorage();
-                renderHistoryChips();
+            if (!nameOverride) {
+                itemInput.value = '';
+                itemInput.focus();
+            }
+        }
+
+        // Toggle Bought
+        window.toggleBought = function(id, currentStatus) {
+            const itemRef = ref(db, `shoppingItems/${id}`);
+            update(itemRef, { bought: !currentStatus });
+        };
+
+        // Delete Item with Undo Toast
+        window.deleteItem = function(id) {
+            const itemToDelete = items.find(i => i.id === id);
+            if (!itemToDelete) return;
+
+            deletedItemTemp = { ...itemToDelete };
+            remove(ref(db, `shoppingItems/${id}`));
+
+            showUndoToast(deletedItemTemp);
+        };
+
+        function showUndoToast(item) {
+            const toast = document.getElementById('undoToast');
+            const toastText = document.getElementById('undoText');
+            toastText.textContent = `Deleted "${item.name}"`;
+            toast.classList.remove('hidden', 'translate-y-10', 'opacity-0');
+
+            if (deleteTimeout) clearTimeout(deleteTimeout);
+            deleteTimeout = setTimeout(() => {
+                hideUndoToast();
+            }, 5000);
+        }
+
+        window.hideUndoToast = function() {
+            const toast = document.getElementById('undoToast');
+            toast.classList.add('translate-y-10', 'opacity-0');
+            setTimeout(() => toast.classList.add('hidden'), 300);
+        };
+
+        window.undoDelete = function() {
+            if (deletedItemTemp) {
+                const { id, ...itemData } = deletedItemTemp;
+                push(itemsRef, itemData);
+                deletedItemTemp = null;
+                hideUndoToast();
+            }
+        };
+
+        // Update typed history in datalist and chips
+        function updateHistoryDatalist() {
+            const uniqueNames = [...new Set(items.map(i => i.name.trim()))];
+            datalist.innerHTML = uniqueNames.map(name => `<option value="${name}">`).join('');
+
+            // Display top 5 recent unique items as quick chips
+            const recentNames = uniqueNames.slice(0, 6);
+            if (recentNames.length > 0) {
+                quickAddContainer.innerHTML = recentNames.map(name => `
+                    <button type="button" onclick="quickAdd('${name.replace(/'/g, "\\'")}')" class="px-2.5 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full border border-slate-300 transition-colors flex items-center space-x-1">
+                        <i class="fa-solid font-bold text-slate-400">+</i>
+                        <span>${name}</span>
+                    </button>
+                `).join('');
             } else {
-                saveToStorage();
-            }
-
-            input.value = '';
-            document.getElementById('autocompleteDropdown').classList.add('hidden');
-            renderItems();
-        }
-
-        // --- Toggle Item Bought Status ---
-        function toggleBought(id) {
-            const item = items.find(i => i.id === id);
-            if (!item) return;
-
-            item.bought = !item.bought;
-            saveToStorage();
-            renderItems();
-
-            if (item.bought) {
-                showToast(`Marked "${item.text}" as bought`, () => {
-                    item.bought = false;
-                    saveToStorage();
-                    renderItems();
-                });
+                quickAddContainer.innerHTML = '';
             }
         }
 
-        // --- Delete Single Item ---
-        function deleteItem(id) {
-            const index = items.findIndex(i => i.id === id);
-            if (index === -1) return;
+        window.quickAdd = function(name) {
+            addItem(name);
+        };
 
-            lastDeletedItem = { item: items[index], index: index };
-            items.splice(index, 1);
-            saveToStorage();
-            renderItems();
-
-            showToast(`Deleted "${lastDeletedItem.item.text}"`, () => {
-                items.splice(lastDeletedItem.index, 0, lastDeletedItem.item);
-                saveToStorage();
-                renderItems();
-            });
-        }
-
-        // --- Clear All Completed/Bought Items ---
-        function clearBoughtItems() {
-            const boughtCount = items.filter(i => i.bought).length;
-            if (boughtCount === 0) {
-                showToast("No bought items to clear", null);
-                return;
-            }
-
-            const removed = items.filter(i => i.bought);
-            items = items.filter(i => !i.bought);
-            saveToStorage();
-            renderItems();
-
-            showToast(`Cleared ${boughtCount} bought item(s)`, () => {
-                items.push(...removed);
-                saveToStorage();
-                renderItems();
-            });
-        }
-
-        // --- Search Filters ---
-        function clearSearch() {
-            document.getElementById('searchInput').value = '';
-            renderItems();
-        }
-
-        // --- Main Render Function ---
-        function renderItems() {
-            const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
-            const categoryVal = document.getElementById('categoryFilter').value;
-            const clearSearchBtn = document.getElementById('clearSearchBtn');
-
-            if (searchVal) clearSearchBtn.classList.remove('hidden');
-            else clearSearchBtn.classList.add('hidden');
-
-            // Update heading
-            const heading = document.getElementById('sectionHeading');
-            heading.textContent = currentTab === 'ALL' ? 'All Family Lists' : `${currentTab}'s Shopping List`;
-
-            // Filter items by tab, search, category
-            let filtered = items.filter(item => {
-                const matchesTab = (currentTab === 'ALL') || (item.member === currentTab);
-                const matchesSearch = item.text.toLowerCase().includes(searchVal) || item.member.toLowerCase().includes(searchVal);
-                const matchesCategory = (categoryVal === 'ALL') || (item.category === categoryVal);
-                return matchesTab && matchesSearch && matchesCategory;
-            });
-
-            // Update item stats count
-            const unboughtCount = filtered.filter(i => !i.bought).length;
-            const totalCount = filtered.length;
-            document.getElementById('itemCounts').textContent = `${unboughtCount} remaining (${totalCount} total)`;
-
-            const container = document.getElementById('shoppingListsContainer');
-            
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-12 px-4 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
-                        <div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
-                            <i class="fa-solid fa-basket-shopping text-xl"></i>
-                        </div>
-                        <h3 class="font-bold text-slate-700 dark:text-slate-200">No items found</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Add a new item above or clear search filters.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Group by Member if 'ALL' tab selected, otherwise render directly
-            let html = '';
-
-            const membersToDisplay = currentTab === 'ALL' 
-                ? MEMBERS 
-                : MEMBERS.filter(m => m.id === currentTab);
-
-            membersToDisplay.forEach(member => {
-                const memberItems = filtered.filter(i => i.member === member.id);
-                if (currentTab === 'ALL' && memberItems.length === 0) return; // Hide empty sections in 'ALL' view
-
-                html += `
-                    <section class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden shadow-sm fade-in">
-                        <!-- Member Header Bar -->
-                        <div class="px-4 py-3 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold border ${member.badge} flex items-center gap-1.5">
-                                    <i class="fa-solid ${member.icon}"></i> ${member.name}
-                                </span>
-                                <span class="text-xs text-slate-400 font-medium">(${memberItems.filter(i => !i.bought).length} to buy)</span>
-                            </div>
-                            <button onclick="switchTab('${member.id}')" class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold ${currentTab !== 'ALL' ? 'hidden' : ''}">
-                                View Only
-                            </button>
-                        </div>
-
-                        <!-- Item List -->
-                        <ul class="divide-y divide-slate-100 dark:divide-slate-700/50">
-                `;
-
-                if (memberItems.length === 0) {
-                    html += `
-                        <li class="px-4 py-4 text-xs text-center text-slate-400 italic">
-                            No items added for ${member.name} yet.
-                        </li>
-                    `;
+        // Filter Member Event
+        window.setMemberFilter = function(member) {
+            currentMemberFilter = member;
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                if (tab.dataset.member === member) {
+                    tab.className = 'filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-blue-600 text-white active-tab';
                 } else {
-                    // Sort unbought items top, bought items bottom
-                    const sorted = [...memberItems].sort((a, b) => Number(a.bought) - Number(b.bought));
-
-                    sorted.forEach(item => {
-                        html += `
-                            <li class="px-4 py-3 flex items-center justify-between gap-3 group transition ${item.bought ? 'bg-slate-50/50 dark:bg-slate-900/40 opacity-65' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}">
-                                <div class="flex items-center space-x-3 min-w-0 flex-1 cursor-pointer" onclick="toggleBought('${item.id}')">
-                                    <!-- Checkbox Toggle -->
-                                    <button type="button" class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition shrink-0 ${item.bought ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600 hover:border-blue-500'}">
-                                        ${item.bought ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
-                                    </button>
-                                    
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2 flex-wrap">
-                                            <span class="text-sm font-semibold text-slate-800 dark:text-slate-100 ${item.bought ? 'line-through text-slate-400 dark:text-slate-500' : ''}">
-                                                ${escapeHtml(item.text)}
-                                            </span>
-                                            <!-- Category Badge -->
-                                            <span class="text-[10px] px-2 py-0.5 rounded-md font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-600/50">
-                                                ${getCategoryEmoji(item.category)} ${item.category}
-                                            </span>
-                                        </div>
-                                        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                                            <i class="fa-regular fa-clock text-[10px] mr-0.5"></i> Added ${item.addedAt}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <!-- Action Buttons -->
-                                <div class="flex items-center space-x-1">
-                                    <button onclick="deleteItem('${item.id}')" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition" title="Delete Item">
-                                        <i class="fa-solid fa-trash-can text-sm"></i>
-                                    </button>
-                                </div>
-                            </li>
-                        `;
-                    });
+                    tab.className = 'filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-slate-100 text-slate-600 hover:bg-slate-200';
                 }
-
-                html += `
-                        </ul>
-                    </section>
-                `;
             });
+            renderItems();
+        };
 
-            container.innerHTML = html;
-        }
-
-        // --- Category Emoji Lookup ---
-        function getCategoryEmoji(cat) {
-            const map = {
-                'Produce': '🥦',
-                'Bakery': '🍞',
-                'Chilled & Dairy': '🧀',
-                'Meat & Fish': '🥩',
-                'Pantry & Snacks': '🥫',
-                'Frozen': '🧊',
-                'Drinks': '🥤',
-                'Household': '🧹',
-                'Other': '🛒'
-            };
-            return map[cat] || '🛒';
-        }
-
-        // --- Toast / Undo Notification System ---
-        function showToast(message, undoCallback) {
-            const toast = document.getElementById('toast');
-            const toastMsg = document.getElementById('toastMessage');
-            const undoBtn = document.getElementById('toastUndoBtn');
-
-            if (toastTimeout) clearTimeout(toastTimeout);
-
-            toastMsg.textContent = message;
-
-            if (undoCallback) {
-                undoBtn.classList.remove('hidden');
-                undoBtn.onclick = () => {
-                    undoCallback();
-                    hideToast();
-                };
-            } else {
-                undoBtn.classList.add('hidden');
-            }
-
-            toast.classList.remove('hidden');
-
-            toastTimeout = setTimeout(() => {
-                hideToast();
-            }, 4000);
-        }
-
-        function hideToast() {
-            const toast = document.getElementById('toast');
-            toast.classList.add('hidden');
-        }
-
-        // --- Copy/Share Shopping List Summary ---
-        function copyListSummary() {
-            const unbought = items.filter(i => !i.bought);
-            if (unbought.length === 0) {
-                showToast("Shopping list is currently empty!", null);
+        // Share Summary via WhatsApp / Text
+        window.shareSummary = function() {
+            const unboughtItems = items.filter(i => !i.bought);
+            if (unboughtItems.length === 0) {
+                alert('Shopping list is currently empty!');
                 return;
             }
 
             let text = "🛒 *Family Aldi Shopping List*\n\n";
-            MEMBERS.forEach(m => {
-                const memberItems = unbought.filter(i => i.member === m.id);
-                if (memberItems.length > 0) {
-                    text += `*${m.name}:*\n`;
-                    memberItems.forEach(item => {
-                        text += `  • ${item.text} (${item.category})\n`;
-                    });
-                    text += `\n`;
-                }
+            const grouped = {};
+            unboughtItems.forEach(i => {
+                if (!grouped[i.category]) grouped[i.category] = [];
+                grouped[i.category].push(`${i.name} (${i.member})`);
             });
 
-            text += `Total items: ${unbought.length}`;
-
-            // Copy using temporary textarea for reliable iFrame/mobile support
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                showToast("List summary copied to clipboard!", null);
-            } catch (err) {
-                showToast("Failed to copy list", null);
+            for (const cat in grouped) {
+                text += `*${cat.toUpperCase()}*\n`;
+                grouped[cat].forEach(itemStr => {
+                    text += `• ${itemStr}\n`;
+                });
+                text += `\n`;
             }
-            document.body.removeChild(textarea);
+
+            if (navigator.share) {
+                navigator.share({ title: 'Aldi Shopping List', text: text }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(text);
+                alert('Shopping summary copied to clipboard!');
+            }
+        };
+
+        // Render UI
+        function renderItems() {
+            const search = searchInput.value.toLowerCase().trim();
+            const filtered = items.filter(item => {
+                const matchesMember = (currentMemberFilter === 'All') || (item.member === currentMemberFilter);
+                const matchesSearch = item.name.toLowerCase().includes(search) || item.member.toLowerCase().includes(search);
+                return matchesMember && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                itemsList.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            // Sort unbought top, bought bottom
+            filtered.sort((a, b) => a.bought - b.bought);
+
+            itemsList.innerHTML = filtered.map(item => `
+                <div class="group bg-white rounded-2xl p-4 border ${item.bought ? 'border-slate-200 bg-slate-50/70 opacity-60' : 'border-slate-200/80 shadow-sm hover:shadow-md'} transition-all duration-200 flex items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3.5 flex-1 min-w-0">
+                        <button onclick="toggleBought('${item.id}', ${item.bought})" class="w-7 h-7 rounded-full border-2 ${item.bought ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-slate-400'} flex items-center justify-center transition-colors shrink-0">
+                            ${item.bought ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                        </button>
+                        
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-base font-semibold text-slate-800 break-words ${item.bought ? 'line-through text-slate-400' : ''}">
+                                    ${item.name}
+                                </span>
+                            </div>
+                            <div class="flex items-center space-x-2 mt-1 flex-wrap gap-y-1">
+                                <span class="px-2 py-0.5 rounded-md text-xs font-semibold ${memberBadgeColors[item.member] || 'bg-slate-500 text-white'} shadow-xs">
+                                    ${item.member}
+                                </span>
+                                <span class="text-xs text-slate-400 flex items-center">
+                                    <i class="fa-regular fa-clock mr-1 text-[10px]"></i> ${item.timestamp}
+                                </span>
+                                <span class="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                    ${item.category}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="deleteItem('${item.id}')" class="text-slate-300 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-colors shrink-0">
+                        <i class="fa-regular fa-trash-can text-lg"></i>
+                    </button>
+                </div>
+            `).join('');
         }
 
-        // Utility: Escape HTML strings to prevent layout breaks or XSS
-        function escapeHtml(str) {
-            return str.replace(/[&<>"']/g, function(m) {
-                return {
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    '"': '&quot;',
-                    "'": '&#039;'
-                }[m];
-            });
-        }
+        // Event Listeners
+        addItemBtn.addEventListener('click', () => addItem());
+        itemInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addItem();
+        });
+        searchInput.addEventListener('input', renderItems);
+
+        // Make functions global for inline button calls
+        window.addItem = addItem;
     </script>
+</head>
+<body class="bg-slate-100 font-['Inter'] text-slate-800 min-h-screen pb-24">
+
+    <!-- Sticky Top Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
+        <div class="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+                    <i class="fa-solid fa-cart-shopping text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-slate-900 leading-tight">Aldi Shopping</h1>
+                    <div id="connectionBadge" class="text-xs text-slate-400 flex items-center">
+                        <span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1.5 animate-pulse"></span>Connecting...
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="shareSummary()" class="p-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors flex items-center space-x-1.5 text-xs font-semibold">
+                <i class="fa-solid fa-share-nodes text-sm"></i>
+                <span class="hidden sm:inline">Share List</span>
+            </button>
+        </div>
+
+        <!-- Filter Tabs for Family Members -->
+        <div class="max-w-xl mx-auto px-4 pb-3 flex space-x-2 overflow-x-auto no-scrollbar">
+            <button onclick="setMemberFilter('All')" data-member="All" class="filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-blue-600 text-white">
+                All Items
+            </button>
+            <button onclick="setMemberFilter('Michelle')" data-member="Michelle" class="filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-slate-100 text-slate-600 hover:bg-slate-200">
+                Michelle
+            </button>
+            <button onclick="setMemberFilter('Thomas')" data-member="Thomas" class="filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-slate-100 text-slate-600 hover:bg-slate-200">
+                Thomas
+            </button>
+            <button onclick="setMemberFilter('George')" data-member="George" class="filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-slate-100 text-slate-600 hover:bg-slate-200">
+                George
+            </button>
+            <button onclick="setMemberFilter('Lee')" data-member="Lee" class="filter-tab px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm bg-slate-100 text-slate-600 hover:bg-slate-200">
+                Lee
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-xl mx-auto px-4 pt-4 space-y-4">
+
+        <!-- Input Box Section -->
+        <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 space-y-3">
+            <div class="flex flex-col sm:flex-row gap-2">
+                <div class="relative flex-1">
+                    <input type="text" id="itemInput" list="itemHistory" placeholder="Add item (e.g. Milk, Eggs, Bread)..." 
+                           class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+                    <datalist id="itemHistory"></datalist>
+                </div>
+
+                <div class="flex space-x-2">
+                    <!-- Family Member Picker -->
+                    <select id="memberSelect" class="bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0">
+                        <option value="Michelle">Michelle</option>
+                        <option value="Thomas">Thomas</option>
+                        <option value="George">George</option>
+                        <option value="Lee" selected>Lee</option>
+                    </select>
+
+                    <!-- Category / Aisle Picker -->
+                    <select id="categorySelect" class="bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0">
+                        <option value="Produce">🥦 Produce</option>
+                        <option value="Chilled">🧀 Chilled/Dairy</option>
+                        <option value="Bakery">🍞 Bakery</option>
+                        <option value="Pantry">🥫 Pantry</option>
+                        <option value="Frozen">❄️ Frozen</option>
+                        <option value="Household">🧼 Household</option>
+                    </select>
+                </div>
+            </div>
+
+            <button idaddItemBtn" onclick="addItem()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add to Family List</span>
+            </button>
+
+            <!-- Autocomplete History Chips -->
+            <div class="pt-1">
+                <span class="text-xs text-slate-400 font-medium block mb-1.5">Quick Add Recent:</span>
+                <div id="quickAddChips" class="flex flex-wrap gap-1.5"></div>
+            </div>
+        </section>
+
+        <!-- Search Bar -->
+        <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400 text-sm"></i>
+            <input type="text" id="searchInput" placeholder="Search items or family members..." 
+                   class="w-full bg-white border border-slate-200/80 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs">
+        </div>
+
+        <!-- Dynamic Items List -->
+        <section id="itemsList" class="space-y-2.5"></section>
+
+        <!-- Empty State Container -->
+        <div id="emptyState" class="hidden text-center py-12 px-4 bg-white rounded-2xl border border-dashed border-slate-300">
+            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
+                <i class="fa-solid fa-basket-shopping text-2xl"></i>
+            </div>
+            <h3 class="font-bold text-slate-700 text-base">No items found</h3>
+            <p class="text-slate-400 text-xs mt-1">Your Aldi shopping list is clear!</p>
+        </div>
+
+    </main>
+
+    <!-- Undo Toast Notification -->
+    <div id="undoToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center space-x-4 z-50 transition-all duration-300 hidden translate-y-10 opacity-0 min-w-[280px] justify-between">
+        <span id="undoText" class="text-sm font-medium">Item deleted</span>
+        <button onclick="undoDelete()" class="text-amber-400 hover:text-amber-300 font-bold text-sm uppercase tracking-wide px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors">
+            Undo
+        </button>
+    </div>
+
 </body>
 </html>
